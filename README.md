@@ -1,5 +1,4 @@
-# Tiny-CPU-Lite-v1.0
-Custom 8-bit CPU designed in Verilog featuring a 4-state FSM and self-checking verification.
+
 # Tiny CPU Lite v1.0
 
 A custom 8-bit CPU designed from scratch in **Verilog HDL** as part of my VLSI Frontend Design Internship. This project focuses on RTL design, digital architecture, and functional verification using self-checking testbenches.
