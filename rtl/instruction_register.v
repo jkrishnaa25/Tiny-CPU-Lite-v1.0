@@ -1,5 +1,5 @@
 // Code your design here
-module inst_reg(input clk,rst,ir_enable,
+module inst_reg(input clk,rst,ir_enable,https://github.com/jkrishnaa25/Tiny-CPU-Lite-v1.0/edit/main/instruction_reg.v
                 input [15:0]inst,
                 output reg [15:0]ir_data);
   always @(posedge clk or posedge rst) begin
