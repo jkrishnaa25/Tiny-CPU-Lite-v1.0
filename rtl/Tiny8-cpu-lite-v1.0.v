@@ -1,10 +1,13 @@
 //ALU
-module alu(a,b,opcode,result);
+//ALU
+module alu(a,b,opcode,result,status_reg);
 
   input [7:0]a;
   input [7:0]b; 
   input [2:0]opcode;
   output reg [7:0]result;
+  output reg [3:0] status_reg;
+  reg [8:0]temp;
   
   parameter ADD = 3'b000,
     		SUB = 3'b001,
@@ -19,38 +22,89 @@ module alu(a,b,opcode,result);
     case(opcode)
       ADD : 
         begin
-          result = a + b;
+          temp = a + b;
+          result = temp[7:0];
+          status_reg[3] = temp[8]; 								 //carry
+          status_reg[2] = (result == 8'd0); 					 //zero
+          status_reg[1] = (~(a[7] ^ b[7])) & (a[7] ^ result[7]); //overflow
+          status_reg[0] = result[7];                             //negative
         end
       SUB : 
         begin
-		  result = a - b;
+		  temp = a - b;
+          result = temp[7:0];
+          status_reg[3] = temp[8];
+          status_reg[2] = (result == 8'd0);
+          status_reg[1] = ((a[7] ^ b[7])) & (a[7] ^ result[7]);
+          status_reg[0] = result[7];
         end
       AND : 
         begin
-          result = a & b;
+          temp = a & b;
+          result = temp[7:0];
+          status_reg[3] = 0;
+          status_reg[2] = (result == 8'd0);
+          status_reg[1] = 0;
+          status_reg[0] = result[7];
+
         end
       OR : 
         begin
-          result = a | b;
+          temp = a | b;
+          result = temp[7:0];
+          status_reg[3] = 0;
+          status_reg[2] = (result == 8'd0);
+          status_reg[1] = 0;
+          status_reg[0] = result[7];
+
         end
       XOR : 
         begin
-          result = a ^ b;
+          temp = a ^ b;
+          result = temp[7:0];
+          status_reg[3] = 0;
+          status_reg[2] = (result == 8'd0);
+          status_reg[1] = 0;
+          status_reg[0] = result[7];
+
         end
       CMP : 
         begin
-          result = a - b;
+          temp = a - b;
+          result = temp[7:0];
+          status_reg[3] = temp[8];
+          status_reg[2] = (result == 8'd0);
+          status_reg[1] = ((a[7] ^ b[7])) & (a[7] ^ result[7]);
+          status_reg[0] = result[7];
+
         end
       NOT : 
         begin
-          result = ~a;
+          temp = ~a;
+          result = temp[7:0];
+          status_reg[3] = 0;
+          status_reg[2] = (result == 8'd0);
+          status_reg[1] = 0;
+          status_reg[0] = result[7];
         end
       NOP : 
         begin
-          result = 8'd0;
+          temp = 8'd0;
+          result = temp[7:0];
+          status_reg[3] = 0;
+          status_reg[2] = (result == 8'd0);
+          status_reg[1] = 0;
+          status_reg[0] = result[7];
         end
-      default:
-    	result = 8'd0;
+      default: begin
+        temp = 8'd0;
+        result = temp[7:0];
+        status_reg[3] = 0;
+        status_reg[2] = (result == 8'd0);
+        status_reg[1] = 0;
+        status_reg[0] = result[7];
+      end
+
     endcase
   end
 endmodule
@@ -111,25 +165,6 @@ module inst_mem(input [3:0] in_add,output reg [15:0] out);
   
   reg [15:0] mem [0:15];
   
-  initial begin
-        mem [0] = 16'h0000;
-        mem [1] = 16'h1026;
-        mem [2] = 16'h2656;
-        mem [3] = 16'h2A56;
-        mem [4] = 16'h3ABB;
-        mem [5] = 16'h6A62;
-        mem [6] = 16'h5FFF;
-        mem [7] = 16'h6656;
-        mem [8] = 16'h7454;
-        mem [9] = 16'h4DDD;
-        mem [10] = 16'h154D;
-        mem [11] = 16'h254D;
-        mem [12] = 16'h35DD;
-        mem [13] = 16'h5FF4;
-        mem [14] = 16'h63FC;
-        mem [15] = 16'h5BCD;
-      end
-  
   always @(*) begin
     out = mem[in_add];
   end
@@ -157,14 +192,14 @@ module decoder(input [15:0] instruction,
                output reg [2:0] opcode,
                output reg [1:0] rs,
                output reg [1:0] rd,
-               output reg [7:0] immediate);
+               output reg [7:0] value);
   
   always @(*) begin
     mov = instruction[15];
     opcode = instruction [14:12] ;
     rd =  instruction[11:10];
     rs = instruction [9:8];
-    immediate =  instruction [7:0] ;
+    value =  instruction [7:0] ;
   end
 endmodule
 
@@ -256,30 +291,31 @@ module tiny_cpu(clk,rst);
   input rst;
   
   wire [3:0]pc;
-  wire [15:0]im;
-  wire [15:0]ir;
+  wire [15:0]out;
+  wire [15:0]ir_data;
   wire [2:0]opcode;
   wire [1:0]rs;
   wire [1:0]rd;
   wire [7:0]value;
   wire [7:0]alu_out;
-  wire [7:0]data1;
-  wire [7:0]data2;
+  wire [7:0]read_data1;
+  wire [7:0]read_data2;
   wire mov;
   wire [7:0] mux;
   wire pc_enable;
   wire ir_enable;
   wire write_enable;
+  wire [3:0] status_reg;
   
   fsm mod1(clk,rst,pc_enable,ir_enable,write_enable);
   
   program_counter mod2(clk,rst,pc_enable,pc);
   
-  inst_mem mod3(pc,im);
+  inst_mem mod3(pc,out);
   
-  inst_reg mod4(clk,rst,ir_enable,im,ir);
+  inst_reg mod4(clk,rst,ir_enable,out,ir_data);
   
-  decoder mod5(ir,mov,opcode,rs,rd,value);  
+  decoder mod5(ir_data,mov,opcode,rs,rd,value);  
   
   assign mux = mov ? value : alu_out;
 
@@ -290,13 +326,14 @@ module tiny_cpu(clk,rst);
                      .write_data(mux), 
                      .read_add1(rd), 
                      .read_add2(rs), 
-                     .read_data1(data1), 
-                     .read_data2(data2));
+                     .read_data1(read_data1), 
+                     .read_data2(read_data2));
   
-  alu mod7(.a(data1), 
-           .b(data2), 
+  alu mod7(.a(read_data1), 
+           .b(read_data2), 
            .opcode(opcode), 
-           .result(alu_out));
+           .result(alu_out),
+           .status_reg(status_reg));
     
 endmodule
 
