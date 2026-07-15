@@ -222,7 +222,7 @@ Tiny-CPU-Lite-v1.0
 
 # 👨‍💻 Author
 
-**Jadeja Krishna**
+**Jadeja Krishnasinh**
 
 Electronics & Communication Engineering Student
 
